@@ -4,6 +4,10 @@
 ## info
 * [meta 정리](./META.md)
 
+## 작성자
+* 이름 : 길병찬
+* 연락처 : jjangga@kookmin.ac.kr
+
 ## Client Side Vulnerabilities
 ### https 와 관련해 login page 의 문제점
 현재는 [login page](http://ecampus.kookmin.ac.kr/login.php) 에서만 `https` 를 반드시 사용하도록 하고 있다. 이는 로그인 시에 https 만을 이용하게 하고자 하는 의도일 것이다. 그러나, 로그인 페이지가 https 로 redirect 되는 것은 http 로 페이지가 로드되었을때 client side에서의 javascript 실행에 의한 것이다. 이는 근본적으로 단지 겉으로만 안전해 보이는 눈가리고 아웅식의 조취이다. 서버에서 'http' login request 를 받아주기 때문에 사용자는 브라우저를 이용하지 않고 직접 http 요청을 보내서 로그인 할 수 있고, MITM 공격자가 있다면, spoofing 을 하면서 login page 의 redirect javascript 만 제거하고, 정상적인 page 인 것처럼 사용자에게 건네 줄 수 있다. 서버에서 http 를 https 로 redirect 하거나 `HSTS` 를 통해 브라우저가 항상 https로 접속하도록 하는 것이 필요하다.  
@@ -15,7 +19,7 @@
 https 를 강제하는 것이 보안을 보장하지 않는다. 
 중간자가 SSL/TLS 를 Downgrade 해서 client 에게는 plain http 를 사용하게 하고, 중간자는 그것을 받아 정보를 획득한 후, 다시 암호화해서 server에게 보내면 일반적으로  server는 이 과정을 눈치채지 못한다. `SSLStrip` 으로 대표되는 이런 공격을 방어하기 위해서는 `HSTS(Http Strict Transport Security)` 를 설정하는 것이 필요하다.
 구체적으로 말해, 
-```
+```http
 Strict-Transport-Security: max-age=31536000
 ``` 
 와 같은 헤더를 설정하면, 브라우저는 모든 연결을 https 로 강제한다 (31536000초=1년간). (브라우저는 http 연결을 거부한다.)  물론, client 가 처음으로 방문하는 것이라면 중간자는 HSTS 만 제거하고 내용을 건제줄 수 있지만, 이런 경우를 제외하면 훨씬 안전해진다. 물론, 주의할 점은, 몇몇 웹사이트의 경우 인증서를 제 때 갱신하지 않는데, 만일 이렇게 되면 인증서 만료시 서비스 자체가 수행되지 않을 수 있으니, 항상 인증서가 유효하다는 전제가 필요하다.   
@@ -32,26 +36,33 @@ document.cookie;
 ```
 위 명령어를 브라우저 console 에서 실행시 다음과 같이 모든 쿠키의 정보를 보여준다.
 ```js
-"_ga=GA1.3.1980483938.1523699208; moodle_notice_1_53268=hide; webmail_id=20171580 _gid=GA1.3.84539261.1526729405; MoodleSession=qlcjb4i5gqtvb8jslfjimgbjv5; _gat=1"
+_ga=GA1.3.1980483938.1523699208; 
+moodle_notice_1_53268=hide; 
+webmail_id=20171580;
+_gid=GA1.3.84539261.1526729405; 
+MoodleSession=qlcjb4i5gqtvb8jslfjimgbjv5; 
+_gat=1;
 ```
 이는 혹여라도 (유지보수 등을 통해 미래에 발생할 취약점을 포함해) 있을 XSS 공격이나 다른 창의적인 공격 시나리오에서 응용될 수 있기에 위험하다. 
 
 #### secure flag 가 붙어있지 않은 문제 
 https를 강제한다면, 쿠키에 `secure` flag 를 붙여, Protocol Downgrade Attack 에 대해 한번 더 안전하게 만드는 것이 필요하다.
-
-#### SameSite가 붙어있지 않은 문제
+ 
+#### SameSite flag가 붙어있지 않은 문제
 쿠키에서 `SameSite` flag는 비교적 최근의 속성이므로, 모든 브라우저에 구현되어 있는 것은 아니다. 그러나, 브라우저는 외부 도메인의 사이트에서 request를 보낼 때, `SameSite` flag 가 붙은 쿠키를 전송하지 못하게 하여, MoodleSession 과 같이 민감한 쿠키 를 전송하지 않아 CSRF를 방지하는 데에 도움을 준다.   
 
-### Information Leakage
-[Moodle FW](https://github.com/moodle/moodle) 를 사용했다는 것을 session 명, html meta 정보 등에서 명시적으로 확인 할 수 있었다. 향후, 프레임워크에 취약점이 발견되면, 패치가 될 것인데, 아마도 ecampus에 그 패치가 적용되는 시점은 그 보다 꽤나 이후일 수가 있다. 즉, 제로데이 공격을 받을 수 있다. 때문에 불필요하게 ecampus가 moodle 을 통해 만들어졌다는 것을 표시할 이유는 없다고 여겨진다. 
-
 ## Server Side Vulnerabilities
-### candidates
-* IP 
-* DOS
-* Server 정보 
+### 동일 로그인 계정에서의 IP 체크
+테스트 결과, 다른 공인 IP를 가진 다른 컴퓨터에서 같은 계정으로 동시에 로그인 한 후, 로그인 상태를 유지하는 것이 가능했다. 일반적인 경우라면 상관없지만, 퀴즈제출 등의 경우에는 한 계정으로 동시에 여러곳에서 접속하는 것을 막아야 한다. 
+
+### 동일 로그인 계정에서의 session 체크
+테스트 결과, 다른 세션으로 동시에 동일한 계정에 로그인 해, 로그인 상태를 계속 유지하는 것이 가능했다. 물론 일반적인 경우라면 상관없지만, 위와 같은 이유로, 퀴즈 제출 등의 경우에는 한 계정당 하나의 active한 세션만 인정해야한다. 
 
 ### Information Leakage
+
+#### server 관련 정보 노출  
+Http header에서 `Server : Apache`, `X-Powered-By: PHP/5.6.28` 를 통해 서버의 정보가 노출되고 있다. 이를 비활성화하거나, 역으로 잘못된 정보를 노출하여 공격자들을 속일 수 있다.   
+
 #### database 정보 노출  
   **예** : `http://ecampus.kookmin.ac.kr/pluginfile.php/-10/user/icon/` 접속시 
   ```
@@ -66,12 +77,54 @@ https를 강제한다면, 쿠키에 `secure` flag 를 붙여, Protocol Downgrade
 만일 `grunt`,`gulp` 등의 Task Runner를 사용하지 않는다면, 사용하는 것을 권장한다. 혹시 Task Runner를 사용하지 않는 것인지 추측한 이유는, minified 되지 않은 javascript와 css를 로딩하고, 상당히 여러개의 js 파일을 로딩하는 등을 보았기 때문이다. 만일, 이미 Task Runner를 사용한다면, 적절한 plugin 을 사용해, 해당 부분들을 효율화하면 좋겠다. 
 
 ### 인코딩은 UTF-8로
-일부 소스에서 한글이 깨지는 것으로 보아 인코딩에 문제가 있다고 여겨진다.
+일부 소스에서 한글이 깨지는 것으로 보아 인코딩에 문제가 있다고 여겨진다.  
 예 : http://ecampus.kookmin.ac.kr/theme/jquery.php/theme_coursemosv2/jquery.validate.ko.js
 
 ### webpack
 `require.js`를 사용하는 것으로 보이는데, 향후 효율, 유지보수, 인수인계의 용이성을 위해서 `webpack`을 사용하는 것이 어떨까?
 
-## what seems safe
-* file upload/download vulnerability
-* XSS
+### Header naming (Optional)
+비록 case-insensitive 한 header이더라도, 권장되는 대로 써주자.  
+
+현재|권장
+---|---
+`content-script-type`|`Content-Script-Type`
+`x-ua-compatible`|`X-UA-Compatible`
+`content-style-type`|`Content-Style-Type`
+`x-frame-options`|`X-Frame-Options`
+  
+### 불필요한 내용 또는 접근
+* https://ecampus.kookmin.ac.kr/html/, https://ecampus.kookmin.ac.kr/lib/, https://ecampus.kookmin.ac.kr/auth/, https://ecampus.kookmin.ac.kr/config.php 는 전혀 아무런 유효한 내용도 없이 접근이 허용되고 있다. 추가적으로 config.php가 어떤 내용인지 궁금해 github에서 해당 소스코드를 이곳(https://github.com/moodle/moodle/blob/master/theme/bootstrapbase/config.php)서 찾아보니, 역시, 사용자에게 노출되는 php 가 아니고 설정정보를 configure 하는 역할이었다. 이렇게 순수하게 backend 로직만을 담고있는 부분이 url로 외부에서 접근되는 것은 불필요하다고 보여진다. 
+
+## (혹시나 해서 적는) License 관련 내용
+
+> **DISCLAIMER**  
+> 아래 내용은 법적 분쟁 발생시 법률적 해석이나 논리로 활용될 수 없다. 다만, 개발자로서 라이센스에 대한 기본적인 이해를 바탕으로 한 내용이다.
+
+[moodle framework](https://github.com/moodle/moodle)는 **GPL 3.0** 라이센스를 따르고 있다. 고로, **파생물 배포 전염성**과 **파생물 라이센스 전염성**에 의해 moodle의 파생 소프트웨어인 ecampus의 소스코드 또한 배포를 받는 이에게 공개되어야 하고, ecampus의 license도 GPL 3.0 이어야 한다. 이것은 국민대학교와 외주업체가 협의해서 선택 할 수 있는 사항이 아닌, 말 그대로 의무적으로 따라야 하는 필수적인 사항이다. 만일, 해당 외주업체가 자신들이 개발에 활용하는 opensource의 라이센스에 관한 자세한 내용을 국민대학교에 (의도적이거나 몰라서) 숨기고, 국민대학교에게 모든 소스코드를 넘겨주지 않았다면 위법이다.
+
+## 추가 진행 사항 
+ecampus에 대해 기본적인 분석을 진행하였다. 향후에
+
+* 심층 분석
+* 개발 리뷰
+* 모의 해킹  
+
+과 같은 내용은 별개의 사항이므로, 추가 비용으로 진행될 수 있다.   
+
+## 향후 어떻게 유지보수해 나갈 것인가?
+국민대학교는 전산팀에서 전산 시스템을 운영한다고 알고 있다. 전산팀에서는 운영만 할 뿐, 개발과 보안 관련 사항에 디테일하게 점검하지 않는 것으로 보인다. 그러나 규모있는 시스템이라면, 일단 외주업체에 한번 일을 맡기고, 해당 업체가 제대로 개발을 했는지 리뷰하는 것은 꽤나 중요하다. 그냥 요구하는 기능이 작동하는지만 체크하면, 유지보수성과 보안 문제를 놓히게 되기 때문이다.  
+
+만일 유지보수하기 불편한 구조 (그러나 SI 업체에게는 일단 계약을 완수하기 용이할 수 있는 구조)로 개발이 진행된다면, 향후 시스템을 계속 유지 보수하면서 시간과 비용은 더 들어가고, client인 국민대학교는 그 비용을 모두 감당해야 한다. 설령 외주업체를 바꾸어도 좋지 않은 코드에 손을 대야하기 때문에 아마 기존 업체보다 더 많은 비용을 요구하는 수도 있다. 
+
+그럼에도 불구하고 유지보수 리뷰를 하지 않는다면 client 인 국민대학교에서는 자신의 시스템이 어떤 상태인지를 전혀 모르다가, 몇년이 흘러 어느 순간 보니 유지보수하기 어려워져서 간신히 기능만 동작하고, 나머지 기술과 아키텍쳐가 너무나 시대에 뒤쳐진 것을 알게 되는 수가 있다 (현재 종합정보시스템이 그런 것으로 보인다.). 계약 내용에 따라 다를 수 있지만, 유지보수를 제대로 해왔다면, 진화하는 기술과 구조의 개선이 계속 점차 반영되어서, 10년된 시스템이라도 몇개월 전에 신규로 만들어진 시스템과 차이나지 않는 것을 목표로 잡아야 한다. 
+
+즉, 국민대학교는 외주업체가 유지보수하는 과정에서 시스템이 계속 유지보수하기 더 좋은 구조로 업그레이드되는지, 아니면 반대로 가면 갈수록 그때 그때의 요구사항만 반영하고 끝내기 위해서 코드가 덕지덕지 붙고 유지보수성이 떨어져 가는지 견제하고 감독할 필요가 있다.  
+
+또한, 리뷰와 감독의 필요성은 보안에서도 두드러진다. 많은 계약에서 기본으로 외주업체는 일정 기간 이후에는 하자보수의 책임과 보안상 책임을 지지 않는다. 따라서 실제 보안 문제 발생시 client 가 피해를 모두 책임져야 하는데, 만일 client 가 보안 문제를 감독하지 않는다면 누가 예방해 주겠는가?
+
+그리고, 신규 계약시, 명시적이고 구체적으로 어떠한 특정 공격에 대한 방어를 요구사항에 집어넣는 것도 좋은 방법이다. 즉, 근본적으로 외주업체를 견제하는 것이 일부 필요하다.
+
+그러나 이 모든 것을 위해서는 외주업체와 관련없는 제 3자로, 지속적으로 국민대학교를 위해 개발 또는 보안 분야에서 조언 및 리뷰를 해줄 인력이 필요하다. Full-time 근무일 필요는 없고, 재택에서 유동적으로 점검 및 리뷰하면 되는 일이므로 국민대학교가 우선 1명~2명 정도의 개발, 보안 인력을 직접 고용하거나 프리랜서와 계약을 맺는 것을 추천한다. 
+
+개발, 보안 이슈라는 것이 매달 발생하는 것이 아니므로, 리뷰할 것이 없을 때에는 불필요한 인력 고용으로 보일 수가 있지만, 실제 제 3자가 개발 관리에 참여하면, 대규모 신규개발을 다시하는 일 없이(예를 들어 이번에 종합정보시스템을 다시 개발하는 것 같은 일 없이), 유지보수만으로도 품질 좋은 시스템으로 계속 점차 업그레이드해 갈 여지가 많이 있어서, 학교 입장에서는 오히려 적은 비용으로 높은 효율을 볼 수가 있다.       
