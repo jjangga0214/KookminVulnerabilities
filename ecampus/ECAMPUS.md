@@ -119,7 +119,7 @@ Http header에서 `Server : Apache`, `X-Powered-By: PHP/5.6.28` 를 통해 서�
   
 ### 불필요한 내용 또는 접근
 
-* https://ecampus.kookmin.ac.kr/html/, https://ecampus.kookmin.ac.kr/lib/, https://ecampus.kookmin.ac.kr/auth/, https://ecampus.kookmin.ac.kr/config.php 는 전혀 아무런 유효한 내용도 없이 접근이 허용되고 있다. 추가적으로 config.php가 어떤 내용인지 궁금해 github에서 해당 소스코드를 이곳(https://github.com/moodle/moodle/blob/master/theme/bootstrapbase/config.php)서 찾아보니, 역시, 사용자에게 노출되는 php 가 아니고 설정정보를 configure 하는 역할이었다. 이렇게 순수하게 backend 로직만을 담고있는 부분이 url로 외부에서 접근되는 것은 불필요하다고 보여진다. 
+* https://ecampus.kookmin.ac.kr/html/, https://ecampus.kookmin.ac.kr/lib/, https://ecampus.kookmin.ac.kr/auth/, https://ecampus.kookmin.ac.kr/config.php 는 전혀 아무런 유효한 내용도 없이 접근이 허용되고 있다. 추가적으로 config.php가 어떤 내용인지 궁금해 github에서 해당 소스코드를 [이곳](https://github.com/moodle/moodle/blob/master/theme/bootstrapbase/config.php)서 찾아보니, 역시, 사용자에게 노출되는 php 가 아니고 설정정보를 configure 하는 역할이었다. 이렇게 순수하게 backend 로직만을 담고있는 부분이 url로 외부에서 접근되는 것은 불필요하다고 보여진다. 
 
 ## (혹시나 해서 적는) License 관련 내용
 
