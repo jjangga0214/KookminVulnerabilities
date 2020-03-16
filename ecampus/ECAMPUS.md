@@ -106,10 +106,6 @@ Http header에서 `Server : Apache`, `X-Powered-By: PHP/5.6.28` 를 통해 서�
 
 `require.js`를 사용하는 것으로 보이는데, 향후 효율, 유지보수, 인수인계의 용이성을 위해서 `webpack` 이나 `rollup` 과 같은 모던한 bundler를 사용하는 것이 어떨까?
 
-### SPA 와 CDN 
-
-SPA(이 맥락서는 SSR 포함) 와 CDN 을 사용해 응답속도를 높이고, 사용자 경험도 향상시키자.
-
 ### Header naming (Optional)
 
 비록 case-insensitive 한 header이더라도, 권장되는 대로 써주자.  
